@@ -158,7 +158,7 @@
 
   function teamTotalLabel(team) {
     if (!team.rounds.length) return "—";
-    return G.formatSeconds(G.teamTotalCs(team));
+    return G.formatSeconds(G.teamTotalCs(team)) + " 秒";
   }
 
   function renderPlayChrome() {
@@ -269,8 +269,8 @@
     els.resultSub.textContent = "第 " + state.matchupNumber + " 組";
     els.scoreAName.textContent = a.name;
     els.scoreBName.textContent = b.name;
-    els.scoreASum.textContent = G.formatSeconds(G.teamTotalCs(a));
-    els.scoreBSum.textContent = G.formatSeconds(G.teamTotalCs(b));
+    els.scoreASum.textContent = G.formatSeconds(G.teamTotalCs(a)) + " 秒";
+    els.scoreBSum.textContent = G.formatSeconds(G.teamTotalCs(b)) + " 秒";
     els.thA.textContent = a.name;
     els.thB.textContent = b.name;
     els.scoreA.classList.toggle("is-winner", win === 0);
