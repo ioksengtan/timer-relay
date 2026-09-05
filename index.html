@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#050505" />
+    <title>計時停錶挑戰 · Timer Stop Challenge</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23050505'/%3E%3Ccircle cx='16' cy='16' r='9' fill='%23e10600'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <section id="screen-setup" class="screen is-active" aria-label="設定組別">
+        <p class="brand">TIMER RELAY</p>
+        <h1 class="brand-sub">計時停錶挑戰</h1>
+        <form id="setup-form" class="setup-form">
+          <div class="team-card">
+            <h2>甲隊</h2>
+            <div class="field">
+              <label for="team-a-name">隊名</label>
+              <input id="team-a-name" name="teamAName" maxlength="16" value="甲隊" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="team-a-p1">球員 1</label>
+              <input id="team-a-p1" name="teamAP1" maxlength="16" value="小明" placeholder="例如：小明" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="team-a-p2">球員 2</label>
+              <input id="team-a-p2" name="teamAP2" maxlength="16" value="小華" placeholder="例如：小華" autocomplete="off" />
+            </div>
+          </div>
+          <div class="team-card">
+            <h2>乙隊</h2>
+            <div class="field">
+              <label for="team-b-name">隊名</label>
+              <input id="team-b-name" name="teamBName" maxlength="16" value="乙隊" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="team-b-p1">球員 1</label>
+              <input id="team-b-p1" name="teamBP1" maxlength="16" value="小美" placeholder="例如：小美" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="team-b-p2">球員 2</label>
+              <input id="team-b-p2" name="teamBP2" maxlength="16" value="小強" placeholder="例如：小強" autocomplete="off" />
+            </div>
+          </div>
+          <p class="rules">
+            一組對戰：每隊 2 人輪流停錶，各打完 5 輪（目標 1、2、3、4、5 秒）。
+            誤差取絕對值加總，較低者勝。先打完甲隊 5 輪，再打乙隊 5 輪。
+          </p>
+          <p id="setup-error" class="setup-error" role="alert"></p>
+          <button type="submit" class="primary-btn">開始對戰</button>
+        </form>
+      </section>
+
+      <section id="screen-play" class="screen" aria-label="比賽進行">
+        <div class="play-top">
+          <div>
+            <div id="matchup-meta" class="meta">第 1 組</div>
+            <p id="turn-name" class="turn-name">輪到 —</p>
+          </div>
+          <div id="round-meta" class="meta">輪次 1 / 5</div>
+        </div>
+        <div class="totals">
+          <div id="chip-a" class="total-chip is-active">
+            <span id="chip-a-name" class="label">甲隊</span>
+            <span id="chip-a-total" class="value">0.00</span>
+          </div>
+          <div id="chip-b" class="total-chip">
+            <span id="chip-b-name" class="label">乙隊</span>
+            <span id="chip-b-total" class="value">—</span>
+          </div>
+        </div>
+
+        <div class="diff-slot">
+          <div id="diff-card" class="diff-card" aria-live="polite">
+            <span class="word">誤差</span>
+            <div id="diff-led" class="led-row mini-led" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <div class="timer-stage">
+          <div class="led-board">
+            <div
+              id="main-led"
+              class="led-row"
+              role="timer"
+              aria-live="off"
+              aria-label="秒錶"
+            ></div>
+          </div>
+          <p id="goal-overlay" class="goal-overlay">目標 <span>1:00</span></p>
+          <p id="status-line" class="status-line">心中默數，準備停錶</p>
+        </div>
+
+        <div class="play-actions">
+          <button type="button" id="stop-btn" class="stop-btn is-start">開始</button>
+          <button type="button" id="continue-btn" class="primary-btn continue-btn" hidden>
+            繼續
+          </button>
+          <span id="play-hint" class="hint">空白鍵也可開始 / 停錶</span>
+        </div>
+      </section>
+
+      <section id="screen-result" class="screen" aria-label="對戰結果">
+        <p class="brand">TIMER RELAY</p>
+        <h1 id="result-title" class="result-title">對戰結束</h1>
+        <p id="result-sub" class="result-sub">第 1 組</p>
+        <div class="score-grid">
+          <div id="score-a" class="score-card">
+            <div id="score-a-name" class="name">甲隊</div>
+            <div id="score-a-sum" class="sum">0.00</div>
+          </div>
+          <div id="score-b" class="score-card">
+            <div id="score-b-name" class="name">乙隊</div>
+            <div id="score-b-sum" class="sum">0.00</div>
+          </div>
+        </div>
+        <p class="table-caption">各輪誤差（秒）</p>
+        <table class="round-table">
+          <thead>
+            <tr>
+              <th>輪次</th>
+              <th>目標</th>
+              <th id="th-a">甲隊</th>
+              <th id="th-b">乙隊</th>
+            </tr>
+          </thead>
+          <tbody id="round-body"></tbody>
+        </table>
+        <div class="result-actions">
+          <button type="button" id="next-matchup-btn" class="primary-btn">下一組</button>
+          <button type="button" id="edit-names-btn" class="ghost-btn">修改名單</button>
+        </div>
+      </section>
+    </div>
+    <script src="js/game.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>

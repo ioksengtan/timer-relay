@@ -1,0 +1,370 @@
+(function () {
+  "use strict";
+
+  var G = window.TimerRelay;
+  var SEGMENTS = ["a", "b", "c", "d", "e", "f", "g"];
+
+  var screens = {
+    setup: document.getElementById("screen-setup"),
+    play: document.getElementById("screen-play"),
+    result: document.getElementById("screen-result"),
+  };
+
+  var els = {
+    form: document.getElementById("setup-form"),
+    setupError: document.getElementById("setup-error"),
+    teamAName: document.getElementById("team-a-name"),
+    teamAP1: document.getElementById("team-a-p1"),
+    teamAP2: document.getElementById("team-a-p2"),
+    teamBName: document.getElementById("team-b-name"),
+    teamBP1: document.getElementById("team-b-p1"),
+    teamBP2: document.getElementById("team-b-p2"),
+    matchupMeta: document.getElementById("matchup-meta"),
+    turnName: document.getElementById("turn-name"),
+    roundMeta: document.getElementById("round-meta"),
+    chipA: document.getElementById("chip-a"),
+    chipB: document.getElementById("chip-b"),
+    chipAName: document.getElementById("chip-a-name"),
+    chipBName: document.getElementById("chip-b-name"),
+    chipATotal: document.getElementById("chip-a-total"),
+    chipBTotal: document.getElementById("chip-b-total"),
+    diffCard: document.getElementById("diff-card"),
+    diffLed: document.getElementById("diff-led"),
+    mainLed: document.getElementById("main-led"),
+    goalOverlay: document.getElementById("goal-overlay"),
+    statusLine: document.getElementById("status-line"),
+    stopBtn: document.getElementById("stop-btn"),
+    continueBtn: document.getElementById("continue-btn"),
+    playHint: document.getElementById("play-hint"),
+    resultTitle: document.getElementById("result-title"),
+    resultSub: document.getElementById("result-sub"),
+    scoreA: document.getElementById("score-a"),
+    scoreB: document.getElementById("score-b"),
+    scoreAName: document.getElementById("score-a-name"),
+    scoreBName: document.getElementById("score-b-name"),
+    scoreASum: document.getElementById("score-a-sum"),
+    scoreBSum: document.getElementById("score-b-sum"),
+    thA: document.getElementById("th-a"),
+    thB: document.getElementById("th-b"),
+    roundBody: document.getElementById("round-body"),
+    nextMatchupBtn: document.getElementById("next-matchup-btn"),
+    editNamesBtn: document.getElementById("edit-names-btn"),
+  };
+
+  var matchupNumber = 1;
+  var state = null;
+  var phase = "setup"; // setup | ready | running | stopped | result
+  var lastAdvance = null;
+  var startTs = 0;
+  var elapsedMs = 0;
+  var rafId = 0;
+  var lastStopAt = 0;
+
+  function showScreen(name) {
+    Object.keys(screens).forEach(function (key) {
+      screens[key].classList.toggle("is-active", key === name);
+    });
+  }
+
+  function makeDigit() {
+    var el = document.createElement("div");
+    el.className = "digit";
+    el.setAttribute("data-n", "blank");
+    SEGMENTS.forEach(function (name) {
+      var seg = document.createElement("span");
+      seg.className = "seg " + name;
+      el.appendChild(seg);
+    });
+    return el;
+  }
+
+  function makeColon() {
+    var el = document.createElement("div");
+    el.className = "colon";
+    el.innerHTML = "<i></i><i></i>";
+    return el;
+  }
+
+  function buildLed(container, digitCount, colonAfter) {
+    container.innerHTML = "";
+    var digits = [];
+    for (var i = 0; i < digitCount; i++) {
+      var d = makeDigit();
+      container.appendChild(d);
+      digits.push(d);
+      if (colonAfter && colonAfter.indexOf(i) !== -1) {
+        container.appendChild(makeColon());
+      }
+    }
+    return digits;
+  }
+
+  var mainDigits = buildLed(els.mainLed, 6, [1, 3]);
+  var diffDigits = [];
+
+  function setDigit(el, n) {
+    if (n == null || n === "") {
+      el.setAttribute("data-n", "blank");
+      return;
+    }
+    el.setAttribute("data-n", String(n));
+  }
+
+  function renderMainLed(ms) {
+    var p = G.splitLed(ms);
+    var chars = [Math.floor(p.mm / 10), p.mm % 10, Math.floor(p.ss / 10), p.ss % 10, Math.floor(p.cc / 10), p.cc % 10];
+    chars.forEach(function (n, i) {
+      setDigit(mainDigits[i], n);
+    });
+    els.mainLed.setAttribute("aria-label", "秒錶 " + G.formatLed(ms));
+  }
+
+  function renderDiffLed(errorCs) {
+    els.diffLed.innerHTML = "";
+    diffDigits = [];
+    var text = G.formatDiff(errorCs);
+    for (var i = 0; i < text.length; i++) {
+      var ch = text.charAt(i);
+      if (ch === ":") {
+        els.diffLed.appendChild(makeColon());
+      } else {
+        var d = makeDigit();
+        setDigit(d, ch);
+        els.diffLed.appendChild(d);
+        diffDigits.push(d);
+      }
+    }
+  }
+
+  function readSetup() {
+    return {
+      matchupNumber: matchupNumber,
+      teamA: {
+        name: els.teamAName.value,
+        players: [els.teamAP1.value, els.teamAP2.value],
+      },
+      teamB: {
+        name: els.teamBName.value,
+        players: [els.teamBP1.value, els.teamBP2.value],
+      },
+    };
+  }
+
+  function isTypingTarget(target) {
+    if (!target) return false;
+    var tag = target.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable;
+  }
+
+  function teamTotalLabel(team) {
+    if (!team.rounds.length) return "—";
+    return G.formatSeconds(G.teamTotalCs(team)) + " 秒";
+  }
+
+  function renderPlayChrome() {
+    var team = G.currentTeam(state);
+    var a = state.teams[0];
+    var b = state.teams[1];
+    els.matchupMeta.textContent = "第 " + state.matchupNumber + " 組 · " + team.name;
+    els.turnName.textContent = "輪到 " + G.currentPlayer(state);
+    els.roundMeta.textContent = "輪次 " + (state.roundIndex + 1) + " / " + G.ROUNDS;
+    els.chipAName.textContent = a.name;
+    els.chipBName.textContent = b.name;
+    els.chipATotal.textContent = teamTotalLabel(a);
+    els.chipBTotal.textContent = teamTotalLabel(b);
+    els.chipA.classList.toggle("is-active", state.teamIndex === 0);
+    els.chipB.classList.toggle("is-active", state.teamIndex === 1);
+    els.goalOverlay.innerHTML = "目標 <span>" + G.formatGoal(G.currentTargetSec(state)) + "</span>";
+  }
+
+  function setReady() {
+    phase = "ready";
+    elapsedMs = 0;
+    renderMainLed(0);
+    els.diffCard.classList.remove("is-visible");
+    els.stopBtn.hidden = false;
+    els.stopBtn.textContent = "開始";
+    els.stopBtn.classList.add("is-start");
+    els.continueBtn.hidden = true;
+    els.playHint.textContent = "空白鍵也可開始 / 停錶";
+    if (lastAdvance && lastAdvance.kind === "next-team") {
+      els.statusLine.textContent = state.teams[0].name + " 打完了，換 " + G.currentTeam(state).name + " 上場";
+    } else {
+      els.statusLine.textContent = "心中默數，按開始後從 0 起跳";
+    }
+    renderPlayChrome();
+  }
+
+  function tick(now) {
+    elapsedMs = now - startTs;
+    renderMainLed(elapsedMs);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function startTimer() {
+    if (phase !== "ready") return;
+    phase = "running";
+    lastAdvance = null;
+    startTs = performance.now();
+    elapsedMs = 0;
+    renderMainLed(0);
+    els.diffCard.classList.remove("is-visible");
+    els.stopBtn.textContent = "停";
+    els.stopBtn.classList.remove("is-start");
+    els.statusLine.textContent = "默數中…";
+    els.playHint.textContent = "點按鈕或按空白鍵停錶";
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function stopTimer() {
+    if (phase !== "running") return;
+    var now = performance.now();
+    elapsedMs = now - startTs;
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = 0;
+    }
+    lastStopAt = now;
+    var entry = G.recordStop(state, elapsedMs);
+    lastAdvance = G.peekAdvance(state);
+    phase = "stopped";
+    renderMainLed(entry.stoppedMs);
+    renderDiffLed(entry.errorCs);
+    els.diffCard.classList.add("is-visible");
+    els.stopBtn.hidden = true;
+    els.continueBtn.hidden = false;
+    var continueLabel = "繼續";
+    if (lastAdvance.kind === "next-team") continueLabel = "換隊上場";
+    if (lastAdvance.kind === "result") continueLabel = "看結果";
+    els.continueBtn.textContent = continueLabel;
+    els.statusLine.textContent =
+      "停在 " + G.formatLed(entry.stoppedMs) + "　本輪誤差 " + G.formatDiff(entry.errorCs);
+    els.playHint.textContent = "空白鍵繼續";
+    renderPlayChrome();
+  }
+
+  function continueAfterStop() {
+    if (phase !== "stopped") return;
+    var next = G.advance(state);
+    lastAdvance = next;
+    if (next.kind === "result") {
+      showResult();
+      return;
+    }
+    setReady();
+  }
+
+  function handlePrimary() {
+    if (phase === "ready") startTimer();
+    else if (phase === "running") stopTimer();
+    else if (phase === "stopped") continueAfterStop();
+  }
+
+  function showResult() {
+    phase = "result";
+    showScreen("result");
+    var a = state.teams[0];
+    var b = state.teams[1];
+    var win = G.winnerIndex(state);
+    els.resultSub.textContent = "第 " + state.matchupNumber + " 組";
+    els.scoreAName.textContent = a.name;
+    els.scoreBName.textContent = b.name;
+    els.scoreASum.textContent = G.formatSeconds(G.teamTotalCs(a)) + " 秒";
+    els.scoreBSum.textContent = G.formatSeconds(G.teamTotalCs(b)) + " 秒";
+    els.thA.textContent = a.name;
+    els.thB.textContent = b.name;
+    els.scoreA.classList.toggle("is-winner", win === 0);
+    els.scoreB.classList.toggle("is-winner", win === 1);
+    if (win === -1) {
+      els.resultTitle.textContent = "平手";
+    } else {
+      els.resultTitle.textContent = state.teams[win].name + " 勝";
+    }
+    els.roundBody.innerHTML = "";
+    for (var i = 0; i < G.ROUNDS; i++) {
+      var ra = a.rounds[i];
+      var rb = b.rounds[i];
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>" +
+        (i + 1) +
+        "</td><td>" +
+        G.TARGETS_SEC[i] +
+        "s</td><td>" +
+        G.formatSeconds(ra.errorCs) +
+        "<br><small>" +
+        ra.player +
+        "</small></td><td>" +
+        G.formatSeconds(rb.errorCs) +
+        "<br><small>" +
+        rb.player +
+        "</small></td>";
+      els.roundBody.appendChild(tr);
+    }
+  }
+
+  function beginMatchup() {
+    var setup = readSetup();
+    var err = G.validateSetup(setup);
+    if (err) {
+      els.setupError.textContent = err;
+      return;
+    }
+    els.setupError.textContent = "";
+    setup.matchupNumber = matchupNumber;
+    state = G.createMatchup(setup);
+    lastAdvance = null;
+    showScreen("play");
+    setReady();
+  }
+
+  els.form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    beginMatchup();
+  });
+
+  els.stopBtn.addEventListener("pointerdown", function (e) {
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    els.stopBtn.classList.add("is-pressed");
+    handlePrimary();
+  });
+
+  els.stopBtn.addEventListener("pointerup", function () {
+    els.stopBtn.classList.remove("is-pressed");
+  });
+
+  els.stopBtn.addEventListener("pointerleave", function () {
+    els.stopBtn.classList.remove("is-pressed");
+  });
+
+  els.stopBtn.addEventListener("click", function (e) {
+    e.preventDefault();
+  });
+
+  els.continueBtn.addEventListener("click", function () {
+    continueAfterStop();
+  });
+
+  els.nextMatchupBtn.addEventListener("click", function () {
+    matchupNumber += 1;
+    beginMatchup();
+  });
+
+  els.editNamesBtn.addEventListener("click", function () {
+    matchupNumber += 1;
+    phase = "setup";
+    showScreen("setup");
+  });
+
+  window.addEventListener("keydown", function (e) {
+    if (e.code !== "Space" && e.key !== " ") return;
+    if (isTypingTarget(e.target)) return;
+    e.preventDefault();
+    if (phase === "setup" || phase === "result") return;
+    if (e.repeat) return;
+    handlePrimary();
+  });
+
+  renderMainLed(0);
+})();
