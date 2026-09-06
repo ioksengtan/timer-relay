@@ -57,7 +57,6 @@
   var lastAdvance = null;
   var startTs = 0;
   var elapsedMs = 0;
-  var rafId = 0;
   var lastStopAt = 0;
 
   function showScreen(name) {
@@ -117,6 +116,13 @@
       setDigit(mainDigits[i], n);
     });
     els.mainLed.setAttribute("aria-label", "秒錶 " + G.formatLed(ms));
+  }
+
+  function blankMainLed() {
+    mainDigits.forEach(function (d) {
+      setDigit(d, null);
+    });
+    els.mainLed.setAttribute("aria-label", "秒錶計時中，數字隱藏");
   }
 
   function renderDiffLed(errorCs) {
@@ -195,35 +201,26 @@
     renderPlayChrome();
   }
 
-  function tick(now) {
-    elapsedMs = now - startTs;
-    renderMainLed(elapsedMs);
-    rafId = requestAnimationFrame(tick);
-  }
-
   function startTimer() {
     if (phase !== "ready") return;
     phase = "running";
     lastAdvance = null;
     startTs = performance.now();
     elapsedMs = 0;
-    renderMainLed(0);
+    blankMainLed();
+    els.mainLed.classList.add("is-running");
     els.diffCard.classList.remove("is-visible");
     els.stopBtn.textContent = "停";
     els.stopBtn.classList.remove("is-start");
     els.statusLine.textContent = "默數中…";
     els.playHint.textContent = "點按鈕或按空白鍵停錶";
-    rafId = requestAnimationFrame(tick);
   }
 
   function stopTimer() {
     if (phase !== "running") return;
     var now = performance.now();
     elapsedMs = now - startTs;
-    if (rafId) {
-      cancelAnimationFrame(rafId);
-      rafId = 0;
-    }
+    els.mainLed.classList.remove("is-running");
     lastStopAt = now;
     var entry = G.recordStop(state, elapsedMs);
     lastAdvance = G.peekAdvance(state);
