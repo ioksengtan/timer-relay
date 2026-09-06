@@ -62,6 +62,8 @@
     roundBody: document.getElementById("round-body"),
     nextMatchupBtn: document.getElementById("next-matchup-btn"),
     editNamesBtn: document.getElementById("edit-names-btn"),
+    playConfig: document.getElementById("play-config"),
+    modeOptions: document.querySelector(".mode-options"),
   };
 
   var matchupNumber = 1;
@@ -71,6 +73,7 @@
   var startTs = 0;
   var elapsedMs = 0;
   var lastStopAt = 0;
+  var selectedMode = "2v2";
 
   function showScreen(name) {
     Object.keys(screens).forEach(function (key) {
@@ -78,9 +81,30 @@
     });
   }
 
+  function closestModeOption(el) {
+    while (el && el !== document.body) {
+      if (el.classList && el.classList.contains("mode-option")) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
   function currentMode() {
     var checked = document.querySelector('input[name="mode"]:checked');
-    return checked ? checked.value : "2v2";
+    if (checked) {
+      selectedMode = G.normalizeMode(checked.value);
+      return selectedMode;
+    }
+    return G.normalizeMode(selectedMode);
+  }
+
+  function selectMode(mode) {
+    selectedMode = G.normalizeMode(mode);
+    Array.prototype.forEach.call(els.modeInputs, function (input) {
+      input.checked = input.value === selectedMode;
+    });
+    els.setupError.textContent = "";
+    updateModeUi();
   }
 
   function makeDigit() {
@@ -251,6 +275,9 @@
       els.chipB.classList.toggle("is-active", state.teamIndex === 1);
     }
     els.goalOverlay.innerHTML = "目標 <span>" + G.formatGoal(G.currentTargetSec(state)) + "</span>";
+    if (els.playConfig) {
+      els.playConfig.textContent = G.formatMatchConfig(state);
+    }
   }
 
   function setReady() {
@@ -412,10 +439,20 @@
     setReady();
   }
 
+  if (els.modeOptions) {
+    els.modeOptions.addEventListener("click", function (e) {
+      var option = closestModeOption(e.target);
+      if (!option || !els.modeOptions.contains(option)) return;
+      var input = option.querySelector('input[name="mode"]');
+      if (!input) return;
+      e.preventDefault();
+      selectMode(input.value);
+    });
+  }
+
   Array.prototype.forEach.call(els.modeInputs, function (input) {
     input.addEventListener("change", function () {
-      els.setupError.textContent = "";
-      updateModeUi();
+      selectMode(input.value);
     });
   });
 
@@ -469,7 +506,7 @@
     handlePrimary();
   });
 
-  updateModeUi();
+  selectMode(currentMode());
   updateTargetsPreview();
   renderMainLed(0);
 })();

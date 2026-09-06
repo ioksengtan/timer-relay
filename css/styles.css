@@ -122,6 +122,8 @@ button {
   font-weight: 700;
   letter-spacing: 0.06em;
   user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mode-option input {
@@ -268,6 +270,13 @@ button {
   margin: 2px 0 0;
   font-size: 1.15rem;
   font-weight: 700;
+}
+
+.play-config {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
 }
 
 .totals {

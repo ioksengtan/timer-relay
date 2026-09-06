@@ -294,6 +294,27 @@
     return String(n) + "s";
   }
 
+  function modeLabel(mode) {
+    var m = normalizeMode(mode);
+    if (m === "solo") return "自己玩";
+    if (m === "1v1") return "1v1";
+    return "2v2";
+  }
+
+  function formatTargetsArrow(targets) {
+    return (targets || []).map(function (sec) {
+      var n = Number(sec);
+      if (!isFinite(n)) return String(sec);
+      if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n));
+      return String(n);
+    }).join("→");
+  }
+
+  /** Play-header confirmation line, e.g. "自己玩 · 2→3→4". */
+  function formatMatchConfig(state) {
+    return modeLabel(state && state.mode) + " · " + formatTargetsArrow(targetsOf(state));
+  }
+
   function soloNameOf(setup) {
     return trim(setup && setup.player) ||
       trim(setup && setup.teamA && setup.teamA.players && setup.teamA.players[0]);
@@ -371,6 +392,9 @@
     formatDiff: formatDiff,
     formatSeconds: formatSeconds,
     formatTargetLabel: formatTargetLabel,
+    modeLabel: modeLabel,
+    formatTargetsArrow: formatTargetsArrow,
+    formatMatchConfig: formatMatchConfig,
     validateSetup: validateSetup,
   };
 });

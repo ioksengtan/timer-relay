@@ -217,4 +217,33 @@ function collectSequence(state) {
   console.log("ok target parsing and mode-aware setup validation");
 })();
 
+(function testIndexCacheBustsStaticAssets() {
+  var fs = require("fs");
+  var path = require("path");
+  var html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  assert.ok(html.indexOf("STATIC_ASSET_VERSION") !== -1);
+  assert.ok(/css\/styles\.css\?v=/.test(html));
+  assert.ok(/js\/game\.js\?v=/.test(html));
+  assert.ok(/js\/app\.js\?v=/.test(html));
+  console.log("ok index.html cache-busts css/game/app with ?v=");
+})();
+
+(function testFormatMatchConfig() {
+  var solo = G.createMatchup({ mode: "solo", player: "小明", targetsSec: [2, 3, 4] });
+  assert.strictEqual(G.modeLabel("solo"), "自己玩");
+  assert.strictEqual(G.formatTargetsArrow([2, 3, 4]), "2→3→4");
+  assert.strictEqual(G.formatMatchConfig(solo), "自己玩 · 2→3→4");
+
+  var defaults = G.createMatchup({
+    mode: "2v2",
+    teamA: { name: "紅隊", players: ["小明", "小華"] },
+    teamB: { name: "藍隊", players: ["小美", "小強"] },
+  });
+  assert.strictEqual(G.formatMatchConfig(defaults), "2v2 · 1→2→3→4→5");
+
+  var pvp = G.createMatchup({ mode: "1v1", players: ["A", "B"], targetsSec: [1.5, 3] });
+  assert.strictEqual(G.formatMatchConfig(pvp), "1v1 · 1.5→3");
+  console.log("ok play-header config line encodes mode + targets");
+})();
+
 console.log("\nAll game rule tests passed.");
