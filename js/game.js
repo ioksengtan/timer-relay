@@ -11,19 +11,111 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  var TARGETS_SEC = [1, 2, 3, 4, 5];
-  var ROUNDS = TARGETS_SEC.length;
+  var DEFAULT_TARGETS_SEC = [1, 2, 3, 4, 5];
+  var TARGETS_SEC = DEFAULT_TARGETS_SEC;
+  var ROUNDS = DEFAULT_TARGETS_SEC.length;
+  var MAX_TARGET_SEC = 60;
+  var MAX_TARGETS = 20;
+  var MODES = { solo: "solo", oneVOne: "1v1", twoVTwo: "2v2" };
 
   function trim(value) {
     return String(value == null ? "" : value).trim();
   }
 
+  function normalizeMode(mode) {
+    if (mode === "solo" || mode === "1v1" || mode === "2v2") return mode;
+    return "2v2";
+  }
+
+  function parseTargets(raw) {
+    if (Array.isArray(raw)) {
+      return raw.map(function (item) {
+        return typeof item === "number" ? item : Number(trim(item));
+      });
+    }
+    var text = trim(raw);
+    if (!text) return [];
+    return text.split(/[,，、\s]+/).filter(function (part) {
+      return part !== "";
+    }).map(function (part) {
+      return Number(part);
+    });
+  }
+
+  function validateTargets(targets) {
+    if (!targets || !targets.length) {
+      return "請至少設定 1 個目標秒數。";
+    }
+    if (targets.length > MAX_TARGETS) {
+      return "目標最多 " + MAX_TARGETS + " 個。";
+    }
+    for (var i = 0; i < targets.length; i++) {
+      var t = targets[i];
+      if (typeof t !== "number" || !isFinite(t)) {
+        return "目標秒數必須是數字，例如 1,2,3,4,5。";
+      }
+      if (t <= 0) {
+        return "每個目標秒數必須大於 0。";
+      }
+      if (t > MAX_TARGET_SEC) {
+        return "每個目標秒數不可超過 " + MAX_TARGET_SEC + " 秒。";
+      }
+    }
+    return "";
+  }
+
+  function resolveTargets(raw) {
+    if (raw == null) return DEFAULT_TARGETS_SEC.slice();
+    return parseTargets(raw);
+  }
+
+  function targetsOf(state) {
+    return state && state.targetsSec && state.targetsSec.length
+      ? state.targetsSec
+      : DEFAULT_TARGETS_SEC;
+  }
+
+  function roundsOf(state) {
+    return targetsOf(state).length;
+  }
+
+  function setupTargetsRaw(setup) {
+    if (!setup) return null;
+    if (setup.targetsSec != null) return setup.targetsSec;
+    if (setup.targets != null) return setup.targets;
+    return null;
+  }
+
   function createMatchup(setup) {
-    var a = setup && setup.teamA ? setup.teamA : {};
-    var b = setup && setup.teamB ? setup.teamB : {};
-    return {
-      matchupNumber: setup && setup.matchupNumber ? setup.matchupNumber : 1,
-      teams: [
+    setup = setup || {};
+    var mode = normalizeMode(setup.mode);
+    var targets = resolveTargets(setupTargetsRaw(setup));
+    if (!targets.length) targets = DEFAULT_TARGETS_SEC.slice();
+
+    var teams;
+    if (mode === "solo") {
+      var soloName =
+        trim(setup.player) ||
+        trim(setup.teamA && setup.teamA.players && setup.teamA.players[0]) ||
+        "玩家";
+      teams = [{ name: soloName, players: [soloName], rounds: [] }];
+    } else if (mode === "1v1") {
+      var p1 =
+        trim(setup.players && setup.players[0]) ||
+        trim(setup.teamA && setup.teamA.players && setup.teamA.players[0]) ||
+        "玩家一";
+      var p2 =
+        trim(setup.players && setup.players[1]) ||
+        trim(setup.teamB && setup.teamB.players && setup.teamB.players[0]) ||
+        "玩家二";
+      teams = [
+        { name: p1, players: [p1], rounds: [] },
+        { name: p2, players: [p2], rounds: [] },
+      ];
+    } else {
+      var a = setup.teamA || {};
+      var b = setup.teamB || {};
+      teams = [
         {
           name: trim(a.name) || "甲隊",
           players: [trim(a.players && a.players[0]) || "球員一", trim(a.players && a.players[1]) || "球員二"],
@@ -34,7 +126,14 @@
           players: [trim(b.players && b.players[0]) || "球員三", trim(b.players && b.players[1]) || "球員四"],
           rounds: [],
         },
-      ],
+      ];
+    }
+
+    return {
+      mode: mode,
+      targetsSec: targets.slice(),
+      matchupNumber: setup.matchupNumber ? setup.matchupNumber : 1,
+      teams: teams,
       teamIndex: 0,
       roundIndex: 0,
     };
@@ -45,7 +144,8 @@
   }
 
   function currentPlayerIndex(state) {
-    return state.roundIndex % 2;
+    if (state.mode === "2v2") return state.roundIndex % 2;
+    return 0;
   }
 
   function currentPlayer(state) {
@@ -53,7 +153,7 @@
   }
 
   function currentTargetSec(state) {
-    return TARGETS_SEC[state.roundIndex];
+    return targetsOf(state)[state.roundIndex];
   }
 
   function currentTargetMs(state) {
@@ -61,7 +161,11 @@
   }
 
   function isComplete(state) {
-    return state.teams[0].rounds.length === ROUNDS && state.teams[1].rounds.length === ROUNDS;
+    var n = roundsOf(state);
+    if (state.mode === "solo") {
+      return state.teams[0].rounds.length === n;
+    }
+    return state.teams[0].rounds.length === n && state.teams[1].rounds.length === n;
   }
 
   /**
@@ -106,13 +210,14 @@
     if (state.teams[state.teamIndex].rounds.length !== state.roundIndex + 1) {
       throw new Error("cannot advance before recording the current stop");
     }
-    if (state.roundIndex < ROUNDS - 1) return { kind: "next-round" };
+    if (state.roundIndex < roundsOf(state) - 1) return { kind: "next-round" };
+    if (state.mode === "solo") return { kind: "result" };
     if (state.teamIndex === 0) return { kind: "next-team" };
     return { kind: "result" };
   }
 
   /**
-   * After a recorded stop: next teammate/round, other team, or matchup result.
+   * After a recorded stop: next teammate/round, other side, or matchup result.
    */
   function advance(state) {
     var next = peekAdvance(state);
@@ -132,6 +237,7 @@
   }
 
   function winnerIndex(state) {
+    if (state.mode === "solo" || !state.teams[1]) return 0;
     var a = teamTotalCs(state.teams[0]);
     var b = teamTotalCs(state.teams[1]);
     if (a < b) return 0;
@@ -161,7 +267,11 @@
 
   /** Goal overlay, e.g. 2s → "2:00" (seconds : hundredths). */
   function formatGoal(targetSec) {
-    return targetSec + ":00";
+    var cs = Math.round(Number(targetSec) * 100);
+    if (!isFinite(cs) || cs < 0) cs = 0;
+    var s = Math.floor(cs / 100);
+    var c = cs % 100;
+    return s + ":" + pad2(c);
   }
 
   /** Difference overlay: ":02" under 1s, otherwise "1:23". */
@@ -177,7 +287,43 @@
     return (Math.max(0, cs) / 100).toFixed(2);
   }
 
+  function formatTargetLabel(sec) {
+    var n = Number(sec);
+    if (!isFinite(n)) return String(sec) + "s";
+    if (Math.abs(n - Math.round(n)) < 1e-9) return Math.round(n) + "s";
+    return String(n) + "s";
+  }
+
+  function soloNameOf(setup) {
+    return trim(setup && setup.player) ||
+      trim(setup && setup.teamA && setup.teamA.players && setup.teamA.players[0]);
+  }
+
+  function oneVOneNames(setup) {
+    return [
+      trim(setup && setup.players && setup.players[0]) ||
+        trim(setup && setup.teamA && setup.teamA.players && setup.teamA.players[0]),
+      trim(setup && setup.players && setup.players[1]) ||
+        trim(setup && setup.teamB && setup.teamB.players && setup.teamB.players[0]),
+    ];
+  }
+
   function validateSetup(setup) {
+    var mode = normalizeMode(setup && setup.mode);
+    var targetErr = validateTargets(resolveTargets(setupTargetsRaw(setup)));
+    if (targetErr) return targetErr;
+
+    if (mode === "solo") {
+      if (!soloNameOf(setup)) return "請填寫玩家姓名。";
+      return "";
+    }
+
+    if (mode === "1v1") {
+      var pair = oneVOneNames(setup);
+      if (!pair[0] || !pair[1]) return "請填寫兩位玩家姓名。";
+      return "";
+    }
+
     var a = setup && setup.teamA ? setup.teamA : {};
     var b = setup && setup.teamB ? setup.teamB : {};
     var names = [
@@ -195,8 +341,17 @@
   }
 
   return {
+    DEFAULT_TARGETS_SEC: DEFAULT_TARGETS_SEC,
     TARGETS_SEC: TARGETS_SEC,
     ROUNDS: ROUNDS,
+    MAX_TARGET_SEC: MAX_TARGET_SEC,
+    MAX_TARGETS: MAX_TARGETS,
+    MODES: MODES,
+    normalizeMode: normalizeMode,
+    parseTargets: parseTargets,
+    validateTargets: validateTargets,
+    targetsOf: targetsOf,
+    roundsOf: roundsOf,
     createMatchup: createMatchup,
     currentTeam: currentTeam,
     currentPlayer: currentPlayer,
@@ -215,6 +370,7 @@
     formatGoal: formatGoal,
     formatDiff: formatDiff,
     formatSeconds: formatSeconds,
+    formatTargetLabel: formatTargetLabel,
     validateSetup: validateSetup,
   };
 });

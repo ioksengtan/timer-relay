@@ -91,6 +91,78 @@ button {
   flex: 1;
 }
 
+.mode-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mode-label {
+  margin: 0 4px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.mode-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.mode-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #101012;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  user-select: none;
+}
+
+.mode-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mode-option.is-selected,
+.mode-option:has(input:checked) {
+  border-color: #7a1a1a;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 40, 40, 0.4),
+    0 0 16px rgba(255, 0, 0, 0.15);
+  color: #fff;
+}
+
+.setup-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.setup-mode[hidden] {
+  display: none !important;
+}
+
+.targets-preview {
+  margin: 8px 2px 0;
+  color: #d7d7de;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+
+.field-hint {
+  margin: 6px 2px 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
 .team-card {
   background: var(--bg-panel);
   border: 1px solid var(--line);
@@ -203,6 +275,10 @@ button {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin: 4px 0 10px;
+}
+
+.totals.is-solo {
+  grid-template-columns: 1fr;
 }
 
 .total-chip {
@@ -527,6 +603,10 @@ button {
   margin-bottom: 14px;
 }
 
+.score-grid.is-solo {
+  grid-template-columns: 1fr;
+}
+
 .score-card {
   background: #101012;
   border: 1px solid var(--line);
@@ -574,6 +654,10 @@ button {
 .round-table th {
   color: var(--muted);
   font-weight: 600;
+}
+
+.round-table th[hidden] {
+  display: none;
 }
 
 .result-actions {
