@@ -12,7 +12,12 @@
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23050505'/%3E%3Ccircle cx='16' cy='16' r='9' fill='%23e10600'/%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="css/styles.css" />
+    <!--
+      STATIC_ASSET_VERSION — bump this one value whenever css/js change.
+      GitHub Pages can otherwise serve new HTML with a stale cached game.js
+      (pre-modes createMatchup ignores mode + targetsSec).
+    -->
+    <link rel="stylesheet" href="css/styles.css?v=4" />
   </head>
   <body>
     <div class="app">
@@ -127,6 +132,7 @@
           </div>
           <div id="round-meta" class="meta">輪次 1 / 5</div>
         </div>
+        <p id="play-config" class="play-config">2v2 · 1→2→3→4→5</p>
         <div id="totals" class="totals">
           <div id="chip-a" class="total-chip is-active">
             <span id="chip-a-name" class="label">甲隊</span>
@@ -200,7 +206,7 @@
         </div>
       </section>
     </div>
-    <script src="js/game.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/game.js?v=4"></script>
+    <script src="js/app.js?v=4"></script>
   </body>
 </html>
