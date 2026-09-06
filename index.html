@@ -20,42 +20,102 @@
         <p class="brand">TIMER RELAY</p>
         <h1 class="brand-sub">計時停錶挑戰</h1>
         <form id="setup-form" class="setup-form">
-          <div class="team-card">
-            <h2>甲隊</h2>
-            <div class="field">
-              <label for="team-a-name">隊名</label>
-              <input id="team-a-name" name="teamAName" maxlength="16" value="甲隊" autocomplete="off" />
-            </div>
-            <div class="field">
-              <label for="team-a-p1">球員 1</label>
-              <input id="team-a-p1" name="teamAP1" maxlength="16" value="小明" placeholder="例如：小明" autocomplete="off" />
-            </div>
-            <div class="field">
-              <label for="team-a-p2">球員 2</label>
-              <input id="team-a-p2" name="teamAP2" maxlength="16" value="小華" placeholder="例如：小華" autocomplete="off" />
-            </div>
-          </div>
-          <div class="team-card">
-            <h2>乙隊</h2>
-            <div class="field">
-              <label for="team-b-name">隊名</label>
-              <input id="team-b-name" name="teamBName" maxlength="16" value="乙隊" autocomplete="off" />
-            </div>
-            <div class="field">
-              <label for="team-b-p1">球員 1</label>
-              <input id="team-b-p1" name="teamBP1" maxlength="16" value="小美" placeholder="例如：小美" autocomplete="off" />
-            </div>
-            <div class="field">
-              <label for="team-b-p2">球員 2</label>
-              <input id="team-b-p2" name="teamBP2" maxlength="16" value="小強" placeholder="例如：小強" autocomplete="off" />
+          <div class="mode-picker">
+            <p class="mode-label" id="mode-label">模式</p>
+            <div class="mode-options" role="radiogroup" aria-labelledby="mode-label">
+              <label class="mode-option">
+                <input type="radio" name="mode" value="solo" />
+                <span>自己玩</span>
+              </label>
+              <label class="mode-option">
+                <input type="radio" name="mode" value="1v1" />
+                <span>1v1</span>
+              </label>
+              <label class="mode-option is-selected">
+                <input type="radio" name="mode" value="2v2" checked />
+                <span>2v2</span>
+              </label>
             </div>
           </div>
-          <p class="rules">
-            一組對戰：每隊 2 人輪流停錶，各打完 5 輪（目標 1、2、3、4、5 秒）。
-            誤差取絕對值加總，較低者勝。先打完甲隊 5 輪，再打乙隊 5 輪。
+
+          <div id="setup-solo" class="setup-mode" hidden>
+            <div class="team-card">
+              <h2>自己玩</h2>
+              <div class="field">
+                <label for="solo-name">玩家</label>
+                <input id="solo-name" name="soloName" maxlength="16" value="小明" placeholder="例如：小明" autocomplete="off" />
+              </div>
+            </div>
+          </div>
+
+          <div id="setup-1v1" class="setup-mode" hidden>
+            <div class="team-card">
+              <h2>1 對 1</h2>
+              <div class="field">
+                <label for="pvp-a">玩家 A</label>
+                <input id="pvp-a" name="pvpA" maxlength="16" value="小明" placeholder="例如：小明" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="pvp-b">玩家 B</label>
+                <input id="pvp-b" name="pvpB" maxlength="16" value="小美" placeholder="例如：小美" autocomplete="off" />
+              </div>
+            </div>
+          </div>
+
+          <div id="setup-2v2" class="setup-mode">
+            <div class="team-card">
+              <h2>甲隊</h2>
+              <div class="field">
+                <label for="team-a-name">隊名</label>
+                <input id="team-a-name" name="teamAName" maxlength="16" value="甲隊" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="team-a-p1">球員 1</label>
+                <input id="team-a-p1" name="teamAP1" maxlength="16" value="小明" placeholder="例如：小明" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="team-a-p2">球員 2</label>
+                <input id="team-a-p2" name="teamAP2" maxlength="16" value="小華" placeholder="例如：小華" autocomplete="off" />
+              </div>
+            </div>
+            <div class="team-card">
+              <h2>乙隊</h2>
+              <div class="field">
+                <label for="team-b-name">隊名</label>
+                <input id="team-b-name" name="teamBName" maxlength="16" value="乙隊" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="team-b-p1">球員 1</label>
+                <input id="team-b-p1" name="teamBP1" maxlength="16" value="小美" placeholder="例如：小美" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="team-b-p2">球員 2</label>
+                <input id="team-b-p2" name="teamBP2" maxlength="16" value="小強" placeholder="例如：小強" autocomplete="off" />
+              </div>
+            </div>
+          </div>
+
+          <div class="team-card">
+            <h2>目標秒數</h2>
+            <div class="field">
+              <label for="targets-input">依序（逗號分隔）</label>
+              <input
+                id="targets-input"
+                name="targets"
+                value="1,2,3,4,5"
+                inputmode="decimal"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+            <p id="targets-preview" class="targets-preview">1 → 2 → 3 → 4 → 5 秒</p>
+            <p class="field-hint">最多 20 個；每個大於 0、不超過 60 秒。</p>
+          </div>
+          <p id="setup-rules" class="rules">
+            兩隊各 2 人輪流停錶，各打完整個目標序列。誤差取絕對值加總，較低者勝。先打完甲隊，再打乙隊。
           </p>
           <p id="setup-error" class="setup-error" role="alert"></p>
-          <button type="submit" class="primary-btn">開始對戰</button>
+          <button type="submit" id="setup-submit" class="primary-btn">開始對戰</button>
         </form>
       </section>
 
@@ -67,7 +127,7 @@
           </div>
           <div id="round-meta" class="meta">輪次 1 / 5</div>
         </div>
-        <div class="totals">
+        <div id="totals" class="totals">
           <div id="chip-a" class="total-chip is-active">
             <span id="chip-a-name" class="label">甲隊</span>
             <span id="chip-a-total" class="value">0.00</span>
@@ -112,7 +172,7 @@
         <p class="brand">TIMER RELAY</p>
         <h1 id="result-title" class="result-title">對戰結束</h1>
         <p id="result-sub" class="result-sub">第 1 組</p>
-        <div class="score-grid">
+        <div id="score-grid" class="score-grid">
           <div id="score-a" class="score-card">
             <div id="score-a-name" class="name">甲隊</div>
             <div id="score-a-sum" class="sum">0.00</div>
@@ -136,7 +196,7 @@
         </table>
         <div class="result-actions">
           <button type="button" id="next-matchup-btn" class="primary-btn">下一組</button>
-          <button type="button" id="edit-names-btn" class="ghost-btn">修改名單</button>
+          <button type="button" id="edit-names-btn" class="ghost-btn">修改設定</button>
         </div>
       </section>
     </div>

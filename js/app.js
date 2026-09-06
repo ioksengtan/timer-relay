@@ -13,15 +13,27 @@
   var els = {
     form: document.getElementById("setup-form"),
     setupError: document.getElementById("setup-error"),
+    setupRules: document.getElementById("setup-rules"),
+    setupSubmit: document.getElementById("setup-submit"),
+    modeInputs: document.querySelectorAll('input[name="mode"]'),
+    setupSolo: document.getElementById("setup-solo"),
+    setup1v1: document.getElementById("setup-1v1"),
+    setup2v2: document.getElementById("setup-2v2"),
+    soloName: document.getElementById("solo-name"),
+    pvpA: document.getElementById("pvp-a"),
+    pvpB: document.getElementById("pvp-b"),
     teamAName: document.getElementById("team-a-name"),
     teamAP1: document.getElementById("team-a-p1"),
     teamAP2: document.getElementById("team-a-p2"),
     teamBName: document.getElementById("team-b-name"),
     teamBP1: document.getElementById("team-b-p1"),
     teamBP2: document.getElementById("team-b-p2"),
+    targetsInput: document.getElementById("targets-input"),
+    targetsPreview: document.getElementById("targets-preview"),
     matchupMeta: document.getElementById("matchup-meta"),
     turnName: document.getElementById("turn-name"),
     roundMeta: document.getElementById("round-meta"),
+    totals: document.getElementById("totals"),
     chipA: document.getElementById("chip-a"),
     chipB: document.getElementById("chip-b"),
     chipAName: document.getElementById("chip-a-name"),
@@ -38,6 +50,7 @@
     playHint: document.getElementById("play-hint"),
     resultTitle: document.getElementById("result-title"),
     resultSub: document.getElementById("result-sub"),
+    scoreGrid: document.getElementById("score-grid"),
     scoreA: document.getElementById("score-a"),
     scoreB: document.getElementById("score-b"),
     scoreAName: document.getElementById("score-a-name"),
@@ -63,6 +76,11 @@
     Object.keys(screens).forEach(function (key) {
       screens[key].classList.toggle("is-active", key === name);
     });
+  }
+
+  function currentMode() {
+    var checked = document.querySelector('input[name="mode"]:checked');
+    return checked ? checked.value : "2v2";
   }
 
   function makeDigit() {
@@ -143,17 +161,29 @@
   }
 
   function readSetup() {
-    return {
+    var mode = currentMode();
+    var setup = {
       matchupNumber: matchupNumber,
-      teamA: {
-        name: els.teamAName.value,
-        players: [els.teamAP1.value, els.teamAP2.value],
-      },
-      teamB: {
-        name: els.teamBName.value,
-        players: [els.teamBP1.value, els.teamBP2.value],
-      },
+      mode: mode,
+      targetsSec: els.targetsInput.value,
     };
+    if (mode === "solo") {
+      setup.player = els.soloName.value;
+      return setup;
+    }
+    if (mode === "1v1") {
+      setup.players = [els.pvpA.value, els.pvpB.value];
+      return setup;
+    }
+    setup.teamA = {
+      name: els.teamAName.value,
+      players: [els.teamAP1.value, els.teamAP2.value],
+    };
+    setup.teamB = {
+      name: els.teamBName.value,
+      players: [els.teamBP1.value, els.teamBP2.value],
+    };
+    return setup;
   }
 
   function isTypingTarget(target) {
@@ -167,25 +197,66 @@
     return G.formatSeconds(G.teamTotalCs(team)) + " 秒";
   }
 
+  function updateModeUi() {
+    var mode = currentMode();
+    els.setupSolo.hidden = mode !== "solo";
+    els.setup1v1.hidden = mode !== "1v1";
+    els.setup2v2.hidden = mode !== "2v2";
+    Array.prototype.forEach.call(els.modeInputs, function (input) {
+      input.parentElement.classList.toggle("is-selected", input.checked);
+    });
+    if (mode === "solo") {
+      els.setupRules.textContent = "自己挑戰完整目標序列各停一次，累計絕對誤差為本局成績。沒有對手。";
+      els.setupSubmit.textContent = "開始挑戰";
+    } else if (mode === "1v1") {
+      els.setupRules.textContent = "兩人對戰：玩家 A 先打完整個目標序列，再換玩家 B。誤差取絕對值加總，較低者勝。";
+      els.setupSubmit.textContent = "開始對戰";
+    } else {
+      els.setupRules.textContent = "兩隊各 2 人輪流停錶，各打完整個目標序列。誤差取絕對值加總，較低者勝。先打完甲隊，再打乙隊。";
+      els.setupSubmit.textContent = "開始對戰";
+    }
+  }
+
+  function updateTargetsPreview() {
+    var parsed = G.parseTargets(els.targetsInput.value);
+    var err = G.validateTargets(parsed);
+    if (err) {
+      els.targetsPreview.textContent = "";
+      return;
+    }
+    els.targetsPreview.textContent = parsed.join(" → ") + " 秒";
+  }
+
   function renderPlayChrome() {
     var team = G.currentTeam(state);
     var a = state.teams[0];
-    var b = state.teams[1];
-    els.matchupMeta.textContent = "第 " + state.matchupNumber + " 組 · " + team.name;
-    els.turnName.textContent = "輪到 " + G.currentPlayer(state);
-    els.roundMeta.textContent = "輪次 " + (state.roundIndex + 1) + " / " + G.ROUNDS;
+    var rounds = G.roundsOf(state);
+    var solo = state.mode === "solo";
+    els.matchupMeta.textContent = solo
+      ? "第 " + state.matchupNumber + " 局 · " + a.name
+      : "第 " + state.matchupNumber + " 組 · " + team.name;
+    els.turnName.textContent = solo ? a.name : "輪到 " + G.currentPlayer(state);
+    els.roundMeta.textContent = "輪次 " + (state.roundIndex + 1) + " / " + rounds;
     els.chipAName.textContent = a.name;
-    els.chipBName.textContent = b.name;
     els.chipATotal.textContent = teamTotalLabel(a);
-    els.chipBTotal.textContent = teamTotalLabel(b);
-    els.chipA.classList.toggle("is-active", state.teamIndex === 0);
-    els.chipB.classList.toggle("is-active", state.teamIndex === 1);
+    els.totals.classList.toggle("is-solo", solo);
+    els.chipB.hidden = solo;
+    if (solo) {
+      els.chipA.classList.add("is-active");
+    } else {
+      var b = state.teams[1];
+      els.chipBName.textContent = b.name;
+      els.chipBTotal.textContent = teamTotalLabel(b);
+      els.chipA.classList.toggle("is-active", state.teamIndex === 0);
+      els.chipB.classList.toggle("is-active", state.teamIndex === 1);
+    }
     els.goalOverlay.innerHTML = "目標 <span>" + G.formatGoal(G.currentTargetSec(state)) + "</span>";
   }
 
   function setReady() {
     phase = "ready";
     elapsedMs = 0;
+    els.mainLed.classList.remove("is-running");
     renderMainLed(0);
     els.diffCard.classList.remove("is-visible");
     els.stopBtn.hidden = false;
@@ -231,7 +302,9 @@
     els.stopBtn.hidden = true;
     els.continueBtn.hidden = false;
     var continueLabel = "繼續";
-    if (lastAdvance.kind === "next-team") continueLabel = "換隊上場";
+    if (lastAdvance.kind === "next-team") {
+      continueLabel = state.mode === "1v1" ? "換人上場" : "換隊上場";
+    }
     if (lastAdvance.kind === "result") continueLabel = "看結果";
     els.continueBtn.textContent = continueLabel;
     els.statusLine.textContent =
@@ -261,41 +334,65 @@
     phase = "result";
     showScreen("result");
     var a = state.teams[0];
-    var b = state.teams[1];
-    var win = G.winnerIndex(state);
-    els.resultSub.textContent = "第 " + state.matchupNumber + " 組";
+    var solo = state.mode === "solo";
+    var targets = G.targetsOf(state);
+    els.resultSub.textContent = solo
+      ? "第 " + state.matchupNumber + " 局"
+      : "第 " + state.matchupNumber + " 組";
     els.scoreAName.textContent = a.name;
-    els.scoreBName.textContent = b.name;
     els.scoreASum.textContent = G.formatSeconds(G.teamTotalCs(a)) + " 秒";
-    els.scoreBSum.textContent = G.formatSeconds(G.teamTotalCs(b)) + " 秒";
     els.thA.textContent = a.name;
-    els.thB.textContent = b.name;
-    els.scoreA.classList.toggle("is-winner", win === 0);
-    els.scoreB.classList.toggle("is-winner", win === 1);
-    if (win === -1) {
-      els.resultTitle.textContent = "平手";
+    els.scoreGrid.classList.toggle("is-solo", solo);
+    els.scoreB.hidden = solo;
+    els.thB.hidden = solo;
+    els.nextMatchupBtn.textContent = solo ? "再來一局" : "下一組";
+    if (solo) {
+      els.resultTitle.textContent = "本局成績";
+      els.scoreA.classList.remove("is-winner");
     } else {
-      els.resultTitle.textContent = state.teams[win].name + " 勝";
+      var b = state.teams[1];
+      var win = G.winnerIndex(state);
+      els.scoreBName.textContent = b.name;
+      els.scoreBSum.textContent = G.formatSeconds(G.teamTotalCs(b)) + " 秒";
+      els.thB.textContent = b.name;
+      els.scoreA.classList.toggle("is-winner", win === 0);
+      els.scoreB.classList.toggle("is-winner", win === 1);
+      if (win === -1) {
+        els.resultTitle.textContent = "平手";
+      } else {
+        els.resultTitle.textContent = state.teams[win].name + " 勝";
+      }
     }
     els.roundBody.innerHTML = "";
-    for (var i = 0; i < G.ROUNDS; i++) {
+    for (var i = 0; i < targets.length; i++) {
       var ra = a.rounds[i];
-      var rb = b.rounds[i];
       var tr = document.createElement("tr");
-      tr.innerHTML =
-        "<td>" +
-        (i + 1) +
-        "</td><td>" +
-        G.TARGETS_SEC[i] +
-        "s</td><td>" +
-        G.formatSeconds(ra.errorCs) +
-        "<br><small>" +
-        ra.player +
-        "</small></td><td>" +
-        G.formatSeconds(rb.errorCs) +
-        "<br><small>" +
-        rb.player +
-        "</small></td>";
+      if (solo) {
+        tr.innerHTML =
+          "<td>" +
+          (i + 1) +
+          "</td><td>" +
+          G.formatTargetLabel(targets[i]) +
+          "</td><td>" +
+          G.formatSeconds(ra.errorCs) +
+          "</td>";
+      } else {
+        var rb = state.teams[1].rounds[i];
+        tr.innerHTML =
+          "<td>" +
+          (i + 1) +
+          "</td><td>" +
+          G.formatTargetLabel(targets[i]) +
+          "</td><td>" +
+          G.formatSeconds(ra.errorCs) +
+          "<br><small>" +
+          ra.player +
+          "</small></td><td>" +
+          G.formatSeconds(rb.errorCs) +
+          "<br><small>" +
+          rb.player +
+          "</small></td>";
+      }
       els.roundBody.appendChild(tr);
     }
   }
@@ -314,6 +411,15 @@
     showScreen("play");
     setReady();
   }
+
+  Array.prototype.forEach.call(els.modeInputs, function (input) {
+    input.addEventListener("change", function () {
+      els.setupError.textContent = "";
+      updateModeUi();
+    });
+  });
+
+  els.targetsInput.addEventListener("input", updateTargetsPreview);
 
   els.form.addEventListener("submit", function (e) {
     e.preventDefault();
@@ -357,11 +463,13 @@
   window.addEventListener("keydown", function (e) {
     if (e.code !== "Space" && e.key !== " ") return;
     if (isTypingTarget(e.target)) return;
-    e.preventDefault();
     if (phase === "setup" || phase === "result") return;
     if (e.repeat) return;
+    e.preventDefault();
     handlePrimary();
   });
 
+  updateModeUi();
+  updateTargetsPreview();
   renderMainLed(0);
 })();

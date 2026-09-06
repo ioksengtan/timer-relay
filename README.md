@@ -1,19 +1,20 @@
 # 計時停錶挑戰 / Timer Stop Challenge
 
-同機派對遊戲（timer-relay）：兩隊各派 2 人，輪流在心中默數後按下大红停錶鈕，比誰比較接近目標秒數。
+同機派對遊戲（timer-relay）：心中默數後按下大红停錶鈕，比誰比較接近目標秒數。可自己玩、1 對 1，或兩隊各 2 人的 2v2。
 
 視覺靈感來自 YouTube Shorts「Timer Relay Race」：暗底、紅色七段 LED 秒錶、巨大紅色停錶鈕、目標與誤差疊字。
 
-## 規則（v1 鎖定）
+## 規則
 
-- 一次只打一組對戰。打完再進入下一組。
-- 每組：兩隊各 2 名球員（共 4 個名字）。
-- 固定 5 輪，目標依序為 **1、2、3、4、5 秒**。
-- 秒錶從 0 往上跑；球員默數後用大鈕或空白鍵停錶。
-- 單輪誤差 = |停錶時間 − 目標|。
-- **隊內輪流：** 同隊兩人交替完成該隊的 5 次停錶。對手另外打自己的 5 輪、累計自己的誤差。不是 A、B 每輪對打。
-- 本實作流程：甲隊先打完 5 輪，再換乙隊打完 5 輪。
-- 組結束：各隊 5 輪絕對誤差加總，較低者勝，然後可開「下一組」。
+- 一次只打一組（或一局）。打完再進入下一組。
+- 三種模式（設定頁選擇，預設 **2v2**）：
+  - **自己玩**：填 1 個名字，打完整個目標序列一次，看累計絕對誤差。
+  - **1v1**：兩位玩家。玩家 A 先打完整個序列，再換玩家 B。較低總誤差勝。
+  - **2v2**：兩隊各 2 人。同隊兩人交替完成該隊序列；甲隊先打完，再換乙隊。較低總誤差勝。
+- 預設目標為 **1、2、3、4、5 秒**，開打前可改成逗號分隔清單（至少 1 個，最多 20 個；每個大於 0 且不超過 60 秒）。
+- 秒錶從 0 往上跑；進行中不顯示即時數字，停錶後才亮 LED。
+- 單輪誤差 = |停錶時間 − 目標|。分數是各輪絕對誤差加總。
+- 大鈕或空白鍵開始／停錶。在輸入框打字時空白鍵不會停錶。
 
 沒有帳號、連線或排行榜。
 
@@ -36,11 +37,11 @@ npx --yes serve -l 8080
 
 然後開 <http://localhost:8080>。手機請用電腦區網 IP，直向直式畫面最佳。
 
-操作：設定隊名與四位球員 → 開始對戰。輪到的人按「開始」或空白鍵，默數後按「停」或空白鍵。在輸入框打字時空白鍵不會停錶。
+操作：選模式、填名字、確認或改目標秒數 → 開始。輪到的人按「開始」或空白鍵，默數後按「停」或空白鍵。
 
 ## 計時
 
-經過時間一律用 `performance.now()`，畫面用 `requestAnimationFrame` 更新。**不用** `setInterval` 推進秒數。分數對齊 LED 的百分之一秒（百分秒）。
+經過時間一律用 `performance.now()`，**不用** `setInterval` 推進秒數。分數對齊 LED 的百分之一秒（百分秒）。
 
 ## 測試規則邏輯
 
@@ -58,8 +59,8 @@ node test/game.test.js
 | `css/styles.css` | 直式優先、LED 與停錶鈕 |
 | `js/game.js` | 規則（瀏覽器與 Node 共用） |
 | `js/app.js` | 畫面、高解析計時、觸控／滑鼠／空白鍵 |
-| `test/game.test.js` | 輪流順序、誤差、勝負 |
+| `test/game.test.js` | 模式、目標序列、輪流順序、誤差、勝負 |
 
 ## Rules (English)
 
-Same-device party game. Two teams, two players each. Five rounds with targets 1s–5s. Timer counts up from 0; stop with the big button or Space. Teammates alternate covering their team's five stops; each team totals its own absolute error. Lower total wins. Then start the next matchup. Open `index.html` or serve the folder as above.
+Same-device party game. Pick **solo**, **1v1**, or **2v2** (default). Default targets are 1–5 seconds and can be edited before start. Timer counts up from 0 with live digits hidden; stop with the big button or Space. Score is total absolute error. In 2v2, teammates alternate covering their team's stops and Team A goes first; in 1v1, Player A finishes the whole sequence, then Player B. Lower total wins. Open `index.html` or serve the folder as above.
