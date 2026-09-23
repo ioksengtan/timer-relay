@@ -61,9 +61,11 @@
     thB: document.getElementById("th-b"),
     roundBody: document.getElementById("round-body"),
     nextMatchupBtn: document.getElementById("next-matchup-btn"),
+    nextMatchupLabel: document.getElementById("next-matchup-label"),
     editNamesBtn: document.getElementById("edit-names-btn"),
     playConfig: document.getElementById("play-config"),
     modeOptions: document.querySelector(".mode-options"),
+    presetButtons: document.querySelectorAll(".preset-btn"),
   };
 
   var matchupNumber = 1;
@@ -73,7 +75,12 @@
   var startTs = 0;
   var elapsedMs = 0;
   var lastStopAt = 0;
+  // First visit keeps the markup default (2v2) so a party group is not
+  // switched to solo. A later visit restores the last mode from storage.
   var selectedMode = "2v2";
+  var restoringSetup = false;
+  var lastSetupFields = null;
+  var STORAGE_KEY = "timer-relay.last-setup";
   var wakeLock = null;
   var wakeLockWanted = false;
   var wakeLockPending = false;
@@ -198,6 +205,94 @@
     });
     els.setupError.textContent = "";
     updateModeUi();
+    persistSetup();
+  }
+
+  function readStoredSetup() {
+    try {
+      if (!window.localStorage) return null;
+      var raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      var data = JSON.parse(raw);
+      if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+      return data;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function writeStoredSetup(data) {
+    try {
+      if (!window.localStorage) return;
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (err) {
+      /* Storage blocked or full — the match still runs. */
+    }
+  }
+
+  function setStoredField(el, value, maxLen) {
+    if (typeof value !== "string") return;
+    if (value.length > maxLen) return;
+    el.value = value;
+  }
+
+  function collectSetupFields() {
+    return {
+      mode: currentMode(),
+      soloName: els.soloName.value,
+      pvpA: els.pvpA.value,
+      pvpB: els.pvpB.value,
+      teamAName: els.teamAName.value,
+      teamAP1: els.teamAP1.value,
+      teamAP2: els.teamAP2.value,
+      teamBName: els.teamBName.value,
+      teamBP1: els.teamBP1.value,
+      teamBP2: els.teamBP2.value,
+      targets: els.targetsInput.value,
+    };
+  }
+
+  function applyStoredSetup(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) return;
+    setStoredField(els.soloName, data.soloName, 16);
+    setStoredField(els.pvpA, data.pvpA, 16);
+    setStoredField(els.pvpB, data.pvpB, 16);
+    setStoredField(els.teamAName, data.teamAName, 16);
+    setStoredField(els.teamAP1, data.teamAP1, 16);
+    setStoredField(els.teamAP2, data.teamAP2, 16);
+    setStoredField(els.teamBName, data.teamBName, 16);
+    setStoredField(els.teamBP1, data.teamBP1, 16);
+    setStoredField(els.teamBP2, data.teamBP2, 16);
+    setStoredField(els.targetsInput, data.targets, 240);
+    if (data.mode === "solo" || data.mode === "1v1" || data.mode === "2v2") {
+      selectMode(data.mode);
+    }
+  }
+
+  function persistSetup() {
+    if (restoringSetup) return;
+    var fields = collectSetupFields();
+    lastSetupFields = fields;
+    writeStoredSetup(fields);
+  }
+
+  function sameTargetList(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+
+  function syncPresetSelection() {
+    var current = G.parseTargets(els.targetsInput.value);
+    var currentOk = G.validateTargets(current) === "";
+    Array.prototype.forEach.call(els.presetButtons, function (btn) {
+      var preset = G.parseTargets(btn.getAttribute("data-targets"));
+      var on = currentOk && sameTargetList(current, preset);
+      btn.classList.toggle("is-selected", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
   }
 
   function makeDigit() {
@@ -468,7 +563,9 @@
     els.scoreGrid.classList.toggle("is-solo", solo);
     els.scoreB.hidden = solo;
     els.thB.hidden = solo;
-    els.nextMatchupBtn.textContent = solo ? "再來一局" : "下一組";
+    if (els.nextMatchupLabel) {
+      els.nextMatchupLabel.textContent = solo ? "再來一局" : "下一組";
+    }
     if (solo) {
       els.resultTitle.textContent = "本局成績";
       els.scoreA.classList.remove("is-winner");
@@ -525,14 +622,28 @@
     var err = G.validateSetup(setup);
     if (err) {
       els.setupError.textContent = err;
-      return;
+      phase = "setup";
+      showScreen("setup");
+      return false;
     }
     els.setupError.textContent = "";
+    persistSetup();
     setup.matchupNumber = matchupNumber;
     state = G.createMatchup(setup);
     lastAdvance = null;
     showScreen("play");
     setReady();
+    return true;
+  }
+
+  function replaySameSetup() {
+    if (lastSetupFields) {
+      restoringSetup = true;
+      applyStoredSetup(lastSetupFields);
+      restoringSetup = false;
+    }
+    matchupNumber += 1;
+    if (!beginMatchup()) matchupNumber -= 1;
   }
 
   if (els.modeOptions) {
@@ -552,7 +663,23 @@
     });
   });
 
-  els.targetsInput.addEventListener("input", updateTargetsPreview);
+  function onSetupEdited() {
+    updateTargetsPreview();
+    syncPresetSelection();
+    persistSetup();
+  }
+
+  els.form.addEventListener("input", onSetupEdited);
+  els.form.addEventListener("change", onSetupEdited);
+
+  Array.prototype.forEach.call(els.presetButtons, function (btn) {
+    btn.addEventListener("click", function () {
+      var value = btn.getAttribute("data-targets");
+      if (!value) return;
+      els.targetsInput.value = value;
+      onSetupEdited();
+    });
+  });
 
   els.form.addEventListener("submit", function (e) {
     e.preventDefault();
@@ -613,8 +740,7 @@
   });
 
   els.nextMatchupBtn.addEventListener("click", function () {
-    matchupNumber += 1;
-    beginMatchup();
+    replaySameSetup();
   });
 
   els.editNamesBtn.addEventListener("click", function () {
@@ -632,7 +758,11 @@
     handlePrimary();
   });
 
+  restoringSetup = true;
+  applyStoredSetup(readStoredSetup());
   selectMode(currentMode());
   updateTargetsPreview();
+  syncPresetSelection();
+  restoringSetup = false;
   renderMainLed(0);
 })();

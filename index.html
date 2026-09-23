@@ -21,7 +21,7 @@
       GitHub Pages can otherwise serve new HTML with a stale cached game.js
       (pre-modes createMatchup ignores mode + targetsSec).
     -->
-    <link rel="stylesheet" href="css/styles.css?v=5" />
+    <link rel="stylesheet" href="css/styles.css?v=6" />
   </head>
   <body>
     <div class="app">
@@ -106,8 +106,22 @@
 
           <div class="team-card">
             <h2>目標秒數</h2>
+            <div class="target-presets" role="group" aria-label="目標預設">
+              <button type="button" class="preset-btn" data-targets="1,2,3" aria-pressed="false">
+                <span class="preset-name">短</span>
+                <span class="preset-value">1,2,3</span>
+              </button>
+              <button type="button" class="preset-btn is-selected" data-targets="1,2,3,4,5" aria-pressed="true">
+                <span class="preset-name">標準</span>
+                <span class="preset-value">1,2,3,4,5</span>
+              </button>
+              <button type="button" class="preset-btn" data-targets="3,4,5,6,7" aria-pressed="false">
+                <span class="preset-name">長</span>
+                <span class="preset-value">3,4,5,6,7</span>
+              </button>
+            </div>
             <div class="field">
-              <label for="targets-input">依序（逗號分隔）</label>
+              <label for="targets-input">依序（逗號分隔，可自行修改）</label>
               <input
                 id="targets-input"
                 name="targets"
@@ -118,7 +132,7 @@
               />
             </div>
             <p id="targets-preview" class="targets-preview">1 → 2 → 3 → 4 → 5 秒</p>
-            <p class="field-hint">最多 20 個；每個大於 0、不超過 60 秒。</p>
+            <p class="field-hint">點預設會填入欄位，仍可再改。最多 20 個；每個大於 0、不超過 60 秒。</p>
           </div>
           <p id="setup-rules" class="rules">
             兩隊各 2 人輪流停錶，各打完整個目標序列。誤差取絕對值加總，較低者勝。先打完甲隊，再打乙隊。
@@ -205,12 +219,15 @@
           <tbody id="round-body"></tbody>
         </table>
         <div class="result-actions">
-          <button type="button" id="next-matchup-btn" class="primary-btn">下一組</button>
+          <button type="button" id="next-matchup-btn" class="primary-btn">
+            <span id="next-matchup-label">下一組</span>
+            <span class="btn-note">同一設定再開</span>
+          </button>
           <button type="button" id="edit-names-btn" class="ghost-btn">修改設定</button>
         </div>
       </section>
     </div>
-    <script src="js/game.js?v=5"></script>
-    <script src="js/app.js?v=5"></script>
+    <script src="js/game.js?v=6"></script>
+    <script src="js/app.js?v=6"></script>
   </body>
 </html>
