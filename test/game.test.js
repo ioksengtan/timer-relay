@@ -278,4 +278,27 @@ function collectSequence(state) {
   console.log("ok play-header config line encodes mode + targets");
 })();
 
+(function testCommuteSetupMemoryAndPresets() {
+  var fs = require("fs");
+  var path = require("path");
+  var root = path.join(__dirname, "..");
+  var html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  var app = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  assert.ok(/name="mode" value="2v2" checked/.test(html));
+  assert.ok(!/name="mode" value="solo" checked/.test(html));
+  assert.ok(/var selectedMode = "2v2"/.test(app));
+  assert.ok(html.indexOf('data-targets="1,2,3"') !== -1);
+  assert.ok(html.indexOf('data-targets="1,2,3,4,5"') !== -1);
+  assert.ok(html.indexOf('data-targets="3,4,5,6,7"') !== -1);
+  assert.ok(html.indexOf("同一設定再開") !== -1);
+  assert.ok(html.indexOf("再來一局") === -1);
+  assert.ok(app.indexOf("再來一局") !== -1);
+  assert.ok(app.indexOf("下一組") !== -1);
+  assert.ok(app.indexOf("timer-relay.last-setup") !== -1);
+  assert.ok(app.indexOf("localStorage.getItem") !== -1);
+  assert.ok(app.indexOf("localStorage.setItem") !== -1);
+  assert.ok(app.indexOf("replaySameSetup") !== -1);
+  console.log("ok commute setup is remembered, with presets and one-tap replay");
+})();
+
 console.log("\nAll game rule tests passed.");
