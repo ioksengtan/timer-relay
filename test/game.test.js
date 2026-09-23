@@ -225,7 +225,39 @@ function collectSequence(state) {
   assert.ok(/css\/styles\.css\?v=/.test(html));
   assert.ok(/js\/game\.js\?v=/.test(html));
   assert.ok(/js\/app\.js\?v=/.test(html));
+  var versions = [];
+  html.replace(/(?:css\/styles\.css|js\/game\.js|js\/app\.js)\?v=(\d+)/g, function (_, v) {
+    versions.push(v);
+    return _;
+  });
+  assert.strictEqual(versions.length, 3);
+  assert.strictEqual(versions[0], versions[1]);
+  assert.strictEqual(versions[1], versions[2]);
   console.log("ok index.html cache-busts css/game/app with ?v=");
+})();
+
+(function testMobilePlayShell() {
+  var fs = require("fs");
+  var path = require("path");
+  var root = path.join(__dirname, "..");
+  var html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  var css = fs.readFileSync(path.join(root, "css", "styles.css"), "utf8");
+  var app = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  assert.ok(/maximum-scale=1/.test(html));
+  assert.ok(/user-scalable=no/.test(html));
+  assert.ok(/viewport-fit=cover/.test(html));
+  assert.ok(/apple-mobile-web-app-capable/.test(html));
+  assert.ok(/name="theme-color"/.test(html));
+  assert.ok(/font-size:\s*16px/.test(css));
+  assert.ok(/overscroll-behavior:\s*none/.test(css));
+  assert.ok(/\.is-playing/.test(css));
+  assert.ok(/touch-action:\s*none/.test(css));
+  assert.ok(/wakeLock/.test(app));
+  assert.ok(/navigator\.vibrate/.test(app));
+  assert.ok(/gesturestart/.test(app));
+  assert.ok(/is-playing/.test(app));
+  assert.ok(app.indexOf("performance.now()") !== -1);
+  console.log("ok mobile play shell locks zoom/scroll and no-ops wake lock + haptic");
 })();
 
 (function testFormatMatchConfig() {

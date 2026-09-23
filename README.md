@@ -43,6 +43,16 @@ npx --yes serve -l 8080
 
 經過時間一律用 `performance.now()`，**不用** `setInterval` 推進秒數。分數對齊 LED 的百分之一秒（百分秒）。
 
+## 手機直握
+
+派對時把手機直著拿、用瀏覽器打開（GitHub Pages 為 https，Wake Lock 才會生效）。比賽畫面會：
+
+- 鎖住捲動、雙擊放大與雙指縮放，避免默數時畫面跑掉。
+- 在支援 Screen Wake Lock 的瀏覽器保持螢幕亮著；不支援就略過。
+- 開始與停錶時短震一下；不支援就略過。
+
+姓名與目標秒數的輸入框為 16px，聚焦時不會把整頁放大。`index.html` 裡的 `?v=` 是靜態資源版本，改 css／js 時要一起加。
+
 ## 測試規則邏輯
 
 需要 Node.js：
@@ -63,4 +73,4 @@ node test/game.test.js
 
 ## Rules (English)
 
-Same-device party game. Pick **solo**, **1v1**, or **2v2** (default). Default targets are 1–5 seconds and can be edited before start. Timer counts up from 0 with live digits hidden; stop with the big button or Space. Score is total absolute error. In 2v2, teammates alternate covering their team's stops and Team A goes first; in 1v1, Player A finishes the whole sequence, then Player B. Lower total wins. Open `index.html` or serve the folder as above.
+Same-device party game. Pick **solo**, **1v1**, or **2v2** (default). Default targets are 1–5 seconds and can be edited before start. Timer counts up from 0 with live digits hidden; stop with the big button or Space. Score is total absolute error. In 2v2, teammates alternate covering their team's stops and Team A goes first; in 1v1, Player A finishes the whole sequence, then Player B. Lower total wins. On a phone held upright, the play screen blocks accidental zoom and scroll, asks the browser to keep the screen awake while that screen is open, and vibrates lightly on start and stop when the device supports it. Open `index.html` or serve the folder as above.
