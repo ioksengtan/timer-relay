@@ -74,11 +74,104 @@
   var elapsedMs = 0;
   var lastStopAt = 0;
   var selectedMode = "2v2";
+  var wakeLock = null;
+  var wakeLockWanted = false;
+  var wakeLockPending = false;
+  var wakeLockGen = 0;
+  var lastTapAt = 0;
+
+  function coarsePointer() {
+    return !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+  }
+
+  function hintFor(kind) {
+    if (coarsePointer()) {
+      if (kind === "running") return "再點一下停錶";
+      if (kind === "stopped") return "點繼續進入下一輪";
+      return "點一下開始，再點一下停錶";
+    }
+    if (kind === "running") return "點按鈕或按空白鍵停錶";
+    if (kind === "stopped") return "空白鍵繼續";
+    return "空白鍵也可開始 / 停錶";
+  }
+
+  function pulseHaptic(durationMs) {
+    var vibrate = navigator.vibrate;
+    if (typeof vibrate !== "function") return;
+    try {
+      vibrate.call(navigator, durationMs);
+    } catch (err) {
+      /* Vibration API missing or blocked. */
+    }
+  }
+
+  function acquireWakeLock(gen) {
+    if (!wakeLockWanted || wakeLock || wakeLockPending) return;
+    if (document.visibilityState === "hidden") return;
+    var locks = navigator.wakeLock;
+    if (!locks || typeof locks.request !== "function") return;
+    var pending;
+    try {
+      pending = locks.request("screen");
+    } catch (err) {
+      return;
+    }
+    if (!pending || typeof pending.then !== "function") return;
+    wakeLockPending = true;
+    pending.then(function (sentinel) {
+      wakeLockPending = false;
+      if (gen !== wakeLockGen || !wakeLockWanted || document.visibilityState === "hidden") {
+        if (sentinel && typeof sentinel.release === "function") {
+          sentinel.release().catch(function () {});
+        }
+        return;
+      }
+      wakeLock = sentinel;
+      if (sentinel && typeof sentinel.addEventListener === "function") {
+        sentinel.addEventListener("release", function () {
+          if (wakeLock !== sentinel) return;
+          wakeLock = null;
+          if (wakeLockWanted && gen === wakeLockGen) acquireWakeLock(gen);
+        });
+      }
+    }).catch(function () {
+      wakeLockPending = false;
+      wakeLock = null;
+    });
+  }
+
+  function setWakeLockWanted(wanted) {
+    wakeLockWanted = !!wanted;
+    wakeLockGen += 1;
+    var gen = wakeLockGen;
+    if (!wakeLockWanted) {
+      var lock = wakeLock;
+      wakeLock = null;
+      wakeLockPending = false;
+      if (lock && typeof lock.release === "function") {
+        lock.release().catch(function () {});
+      }
+      return;
+    }
+    acquireWakeLock(gen);
+  }
+
+  function setPlayChromeLocked(locked) {
+    document.documentElement.classList.toggle("is-playing", locked);
+    document.body.classList.toggle("is-playing", locked);
+    setWakeLockWanted(locked);
+  }
+
+  function blockIfPlaying(e) {
+    if (!document.body.classList.contains("is-playing")) return;
+    if (e.cancelable) e.preventDefault();
+  }
 
   function showScreen(name) {
     Object.keys(screens).forEach(function (key) {
       screens[key].classList.toggle("is-active", key === name);
     });
+    setPlayChromeLocked(name === "play");
   }
 
   function closestModeOption(el) {
@@ -290,7 +383,7 @@
     els.stopBtn.textContent = "開始";
     els.stopBtn.classList.add("is-start");
     els.continueBtn.hidden = true;
-    els.playHint.textContent = "空白鍵也可開始 / 停錶";
+    els.playHint.textContent = hintFor("ready");
     if (lastAdvance && lastAdvance.kind === "next-team") {
       els.statusLine.textContent = state.teams[0].name + " 打完了，換 " + G.currentTeam(state).name + " 上場";
     } else {
@@ -311,11 +404,14 @@
     els.stopBtn.textContent = "停";
     els.stopBtn.classList.remove("is-start");
     els.statusLine.textContent = "默數中…";
-    els.playHint.textContent = "點按鈕或按空白鍵停錶";
+    els.playHint.textContent = hintFor("running");
+    pulseHaptic(20);
+    if (wakeLockWanted) acquireWakeLock(wakeLockGen);
   }
 
   function stopTimer() {
     if (phase !== "running") return;
+    pulseHaptic(40);
     var now = performance.now();
     elapsedMs = now - startTs;
     els.mainLed.classList.remove("is-running");
@@ -336,7 +432,7 @@
     els.continueBtn.textContent = continueLabel;
     els.statusLine.textContent =
       "停在 " + G.formatLed(entry.stoppedMs) + "　本輪誤差 " + G.formatDiff(entry.errorCs);
-    els.playHint.textContent = "空白鍵繼續";
+    els.playHint.textContent = hintFor("stopped");
     renderPlayChrome();
   }
 
@@ -481,6 +577,36 @@
   els.stopBtn.addEventListener("click", function (e) {
     e.preventDefault();
   });
+
+  els.stopBtn.addEventListener("contextmenu", function (e) {
+    e.preventDefault();
+  });
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && wakeLockWanted) {
+      acquireWakeLock(wakeLockGen);
+    }
+  });
+
+  window.addEventListener("pageshow", function () {
+    if (wakeLockWanted) acquireWakeLock(wakeLockGen);
+  });
+
+  document.addEventListener("touchmove", blockIfPlaying, { passive: false });
+  ["gesturestart", "gesturechange"].forEach(function (type) {
+    document.addEventListener(type, blockIfPlaying, { passive: false });
+  });
+  document.addEventListener(
+    "touchend",
+    function (e) {
+      if (!document.body.classList.contains("is-playing")) return;
+      var now = Date.now();
+      var interactive = e.target && e.target.closest && e.target.closest("button, a, input, label");
+      if (!interactive && now - lastTapAt < 350 && e.cancelable) e.preventDefault();
+      lastTapAt = now;
+    },
+    { passive: false }
+  );
 
   els.continueBtn.addEventListener("click", function () {
     continueAfterStop();
