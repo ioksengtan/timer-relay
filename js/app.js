@@ -57,8 +57,6 @@
     scoreBName: document.getElementById("score-b-name"),
     scoreASum: document.getElementById("score-a-sum"),
     scoreBSum: document.getElementById("score-b-sum"),
-    thA: document.getElementById("th-a"),
-    thB: document.getElementById("th-b"),
     roundBody: document.getElementById("round-body"),
     nextMatchupBtn: document.getElementById("next-matchup-btn"),
     nextMatchupLabel: document.getElementById("next-matchup-label"),
@@ -548,73 +546,83 @@
     else if (phase === "stopped") continueAfterStop();
   }
 
+  function labeledCell(label, value) {
+    var td = document.createElement("td");
+    td.setAttribute("data-label", label);
+    if (typeof value === "string") {
+      var span = document.createElement("span");
+      span.className = "cell-value";
+      span.textContent = value;
+      td.appendChild(span);
+    } else {
+      td.appendChild(value);
+    }
+    return td;
+  }
+
+  function renderResultTable() {
+    els.roundBody.innerHTML = "";
+    G.resultLines(state).forEach(function (line) {
+      var tr = document.createElement("tr");
+      if (line.best) tr.className = "is-best";
+      tr.appendChild(labeledCell("輪次", String(line.round)));
+      tr.appendChild(labeledCell("目標", G.formatTargetSeconds(line.targetSec)));
+
+      var player = document.createElement("span");
+      player.className = "stop-player";
+      var name = document.createElement("span");
+      name.className = "stop-player-name";
+      name.textContent = line.player;
+      player.appendChild(name);
+      if (state.mode === "2v2") {
+        var team = document.createElement("small");
+        team.className = "stop-team";
+        team.textContent = line.teamName;
+        player.appendChild(team);
+      }
+      if (line.best) {
+        var mark = document.createElement("span");
+        mark.className = "best-mark";
+        mark.textContent = "全場最準";
+        player.appendChild(mark);
+      }
+      tr.appendChild(labeledCell("玩家", player));
+      tr.appendChild(labeledCell("停在幾秒", G.formatSeconds(line.stoppedCs) + " 秒"));
+      tr.appendChild(labeledCell("誤差", G.formatSeconds(line.errorCs) + " 秒"));
+      els.roundBody.appendChild(tr);
+    });
+  }
+
   function showResult() {
     phase = "result";
     showScreen("result");
     var a = state.teams[0];
     var solo = state.mode === "solo";
-    var targets = G.targetsOf(state);
+    var tied = !solo && G.totalsTied(state);
     els.resultSub.textContent = solo
       ? "第 " + state.matchupNumber + " 局"
       : "第 " + state.matchupNumber + " 組";
     els.scoreAName.textContent = a.name;
     els.scoreASum.textContent = G.formatSeconds(G.teamTotalCs(a)) + " 秒";
-    els.thA.textContent = a.name;
     els.scoreGrid.classList.toggle("is-solo", solo);
     els.scoreB.hidden = solo;
-    els.thB.hidden = solo;
     if (els.nextMatchupLabel) {
       els.nextMatchupLabel.textContent = solo ? "再來一局" : "下一組";
     }
+    els.resultTitle.classList.toggle("is-tie", tied);
     if (solo) {
       els.resultTitle.textContent = "本局成績";
       els.scoreA.classList.remove("is-winner");
     } else {
       var b = state.teams[1];
-      var win = G.winnerIndex(state);
+      var win = tied ? -1 : G.winnerIndex(state);
       els.scoreBName.textContent = b.name;
       els.scoreBSum.textContent = G.formatSeconds(G.teamTotalCs(b)) + " 秒";
-      els.thB.textContent = b.name;
       els.scoreA.classList.toggle("is-winner", win === 0);
       els.scoreB.classList.toggle("is-winner", win === 1);
-      if (win === -1) {
-        els.resultTitle.textContent = "平手";
-      } else {
-        els.resultTitle.textContent = state.teams[win].name + " 勝";
-      }
+      els.resultTitle.textContent = tied ? "平手" : state.teams[win].name + " 勝";
     }
-    els.roundBody.innerHTML = "";
-    for (var i = 0; i < targets.length; i++) {
-      var ra = a.rounds[i];
-      var tr = document.createElement("tr");
-      if (solo) {
-        tr.innerHTML =
-          "<td>" +
-          (i + 1) +
-          "</td><td>" +
-          G.formatTargetLabel(targets[i]) +
-          "</td><td>" +
-          G.formatSeconds(ra.errorCs) +
-          "</td>";
-      } else {
-        var rb = state.teams[1].rounds[i];
-        tr.innerHTML =
-          "<td>" +
-          (i + 1) +
-          "</td><td>" +
-          G.formatTargetLabel(targets[i]) +
-          "</td><td>" +
-          G.formatSeconds(ra.errorCs) +
-          "<br><small>" +
-          ra.player +
-          "</small></td><td>" +
-          G.formatSeconds(rb.errorCs) +
-          "<br><small>" +
-          rb.player +
-          "</small></td>";
-      }
-      els.roundBody.appendChild(tr);
-    }
+    renderResultTable();
   }
 
   function beginMatchup() {

@@ -74,6 +74,8 @@ button {
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .screen.is-active {
@@ -662,6 +664,22 @@ button {
   text-align: center;
   margin: 8px 0 4px;
   font-size: 1.5rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.result-title.is-tie {
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 4px 18px 6px;
+  border: 1px solid #7a1a1a;
+  border-radius: 999px;
+  background: rgba(255, 40, 40, 0.16);
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  font-size: 1.7rem;
 }
 
 .result-sub {
@@ -697,6 +715,8 @@ button {
 .score-card .name {
   font-size: 0.9rem;
   color: var(--muted);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .score-card .sum {
@@ -712,26 +732,108 @@ button {
 }
 
 .round-table {
+  display: block;
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.78rem;
+  max-width: 100%;
   margin-bottom: 16px;
+  font-size: 0.82rem;
+}
+
+.round-table thead {
+  display: none;
+}
+
+.round-table tbody {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+.round-table tr {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2px 10px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid #1c1c20;
+  border-radius: 12px;
+  background: #101012;
+}
+
+.round-table tr.is-best {
+  border-color: #ff2a2a;
+  background: linear-gradient(180deg, rgba(255, 42, 42, 0.2), rgba(255, 42, 42, 0.06));
+  box-shadow: inset 3px 0 0 #ff2a2a;
 }
 
 .round-table th,
 .round-table td {
-  border-bottom: 1px solid #1c1c20;
-  padding: 8px 4px;
-  text-align: center;
+  border: 0;
+  padding: 2px 0;
+  text-align: right;
+  min-width: 0;
 }
 
-.round-table th {
+.round-table td {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.round-table td[data-label="玩家"] {
+  grid-column: 1 / -1;
+}
+
+.round-table td::before {
+  content: attr(data-label);
   color: var(--muted);
-  font-weight: 600;
+  text-align: left;
+  flex: 0 0 auto;
+  font-size: 0.75rem;
 }
 
-.round-table th[hidden] {
-  display: none;
+.cell-value,
+.stop-player-name,
+.stop-team {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.stop-player {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.stop-player-name {
+  font-weight: 700;
+}
+
+.stop-team {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.best-mark {
+  display: inline-block;
+  max-width: 100%;
+  padding: 1px 8px 2px;
+  border-radius: 999px;
+  background: #e10600;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.45;
+  white-space: normal;
 }
 
 .result-actions {
