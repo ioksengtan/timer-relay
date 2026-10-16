@@ -21,7 +21,7 @@
       GitHub Pages can otherwise serve new HTML with a stale cached game.js
       (pre-modes createMatchup ignores mode + targetsSec).
     -->
-    <link rel="stylesheet" href="css/styles.css?v=6" />
+    <link rel="stylesheet" href="css/styles.css?v=7" />
   </head>
   <body>
     <div class="app">
@@ -206,14 +206,15 @@
             <div id="score-b-sum" class="sum">0.00</div>
           </div>
         </div>
-        <p class="table-caption">各輪誤差（秒）</p>
+        <p class="table-caption">各輪明細</p>
         <table class="round-table">
           <thead>
             <tr>
               <th>輪次</th>
               <th>目標</th>
-              <th id="th-a">甲隊</th>
-              <th id="th-b">乙隊</th>
+              <th>玩家</th>
+              <th>停在幾秒</th>
+              <th>誤差</th>
             </tr>
           </thead>
           <tbody id="round-body"></tbody>
@@ -227,7 +228,7 @@
         </div>
       </section>
     </div>
-    <script src="js/game.js?v=6"></script>
-    <script src="js/app.js?v=6"></script>
+    <script src="js/game.js?v=7"></script>
+    <script src="js/app.js?v=7"></script>
   </body>
 </html>

@@ -233,7 +233,8 @@ function collectSequence(state) {
   assert.strictEqual(versions.length, 3);
   assert.strictEqual(versions[0], versions[1]);
   assert.strictEqual(versions[1], versions[2]);
-  console.log("ok index.html cache-busts css/game/app with ?v=");
+  assert.strictEqual(versions[0], "7");
+  console.log("ok index.html cache-busts css/game/app with ?v=7");
 })();
 
 (function testMobilePlayShell() {
@@ -299,6 +300,97 @@ function collectSequence(state) {
   assert.ok(app.indexOf("localStorage.setItem") !== -1);
   assert.ok(app.indexOf("replaySameSetup") !== -1);
   console.log("ok commute setup is remembered, with presets and one-tap replay");
+})();
+
+(function testResultLinesRecordStopAndBest() {
+  assert.strictEqual(G.formatSeconds(0), "0.00");
+  assert.strictEqual(G.formatSeconds(5), "0.05");
+  assert.strictEqual(G.formatSeconds(100), "1.00");
+  assert.strictEqual(G.formatTargetSeconds(1), "1 秒");
+  assert.strictEqual(G.formatTargetSeconds(1.5), "1.5 秒");
+
+  var duo = G.createMatchup({
+    mode: "2v2",
+    teamA: { name: "甲隊", players: ["小明", "小華"] },
+    teamB: { name: "乙隊", players: ["小美", "小強"] },
+    targetsSec: [1, 2],
+  });
+  // 小明 1.10s (err 0.10), 小華 2.00s (err 0.00), 小美 0.90s (err 0.10), 小強 2.30s (err 0.30)
+  var stops = [1100, 2000, 900, 2300];
+  var recorded = [];
+  stops.forEach(function (ms) {
+    recorded.push(G.recordStop(duo, ms));
+    G.advance(duo);
+  });
+  assert.strictEqual(recorded[0].player, "小明");
+  assert.strictEqual(recorded[0].stoppedCs, 110);
+  assert.strictEqual(recorded[1].player, "小華");
+  assert.strictEqual(recorded[1].stoppedCs, 200);
+  assert.strictEqual(G.formatSeconds(recorded[1].stoppedCs), "2.00");
+
+  var lines = G.resultLines(duo);
+  assert.deepStrictEqual(
+    lines.map(function (line) {
+      return line.round + ":" + line.player + ":" + line.teamName + ":" +
+        G.formatSeconds(line.stoppedCs) + ":" + G.formatSeconds(line.errorCs) + ":" + line.best;
+    }),
+    [
+      "1:小明:甲隊:1.10:0.10:false",
+      "1:小美:乙隊:0.90:0.10:false",
+      "2:小華:甲隊:2.00:0.00:true",
+      "2:小強:乙隊:2.30:0.30:false",
+    ]
+  );
+  assert.strictEqual(G.totalsTied(duo), false);
+  assert.strictEqual(G.winnerIndex(duo), 0);
+
+  var tied = G.createMatchup({
+    mode: "1v1",
+    players: ["小明", "小美"],
+    targetsSec: [1, 2],
+  });
+  [1100, 2200, 900, 2200].forEach(function (ms) {
+    G.recordStop(tied, ms);
+    G.advance(tied);
+  });
+  assert.strictEqual(G.formatSeconds(G.teamTotalCs(tied.teams[0])), "0.30");
+  assert.strictEqual(G.formatSeconds(G.teamTotalCs(tied.teams[1])), "0.30");
+  assert.strictEqual(G.totalsTied(tied), true);
+  assert.strictEqual(G.winnerIndex(tied), -1);
+  var tiedLines = G.resultLines(tied);
+  assert.deepStrictEqual(
+    tiedLines.filter(function (line) { return line.best; }).map(function (line) { return line.player; }),
+    ["小明", "小美"]
+  );
+
+  var solo = G.createMatchup({ mode: "solo", player: "小明", targetsSec: [1] });
+  G.recordStop(solo, 1000);
+  assert.strictEqual(G.totalsTied(solo), false);
+  assert.strictEqual(G.winnerIndex(solo), 0);
+  assert.strictEqual(G.resultLines(solo)[0].best, true);
+  assert.strictEqual(G.resultLines(solo)[0].player, "小明");
+  console.log("ok result lines keep stopped time, mark every best stop, and tie on 2 decimals");
+})();
+
+(function testResultMarkupCopy() {
+  var fs = require("fs");
+  var path = require("path");
+  var root = path.join(__dirname, "..");
+  var html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  var app = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  var css = fs.readFileSync(path.join(root, "css", "styles.css"), "utf8");
+  assert.ok(html.indexOf("各輪明細") !== -1);
+  assert.ok(html.indexOf("停在幾秒") !== -1);
+  assert.ok(html.indexOf(">玩家<") !== -1);
+  assert.ok(app.indexOf("全場最準") !== -1);
+  assert.ok(app.indexOf("本局成績") !== -1);
+  assert.ok(app.indexOf('tied ? "平手"') !== -1);
+  assert.ok(app.indexOf("totalsTied") !== -1);
+  assert.ok(app.indexOf("resultLines") !== -1);
+  assert.ok(css.indexOf(".best-mark") !== -1);
+  assert.ok(css.indexOf(".result-title.is-tie") !== -1);
+  assert.ok(app.indexOf("timer-relay.last-setup") !== -1);
+  console.log("ok result screen copy marks the best stop and a rounded tie");
 })();
 
 console.log("\nAll game rule tests passed.");

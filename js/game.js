@@ -238,11 +238,53 @@
 
   function winnerIndex(state) {
     if (state.mode === "solo" || !state.teams[1]) return 0;
+    if (totalsTied(state)) return -1;
     var a = teamTotalCs(state.teams[0]);
     var b = teamTotalCs(state.teams[1]);
     if (a < b) return 0;
     if (b < a) return 1;
     return -1;
+  }
+
+  /**
+   * True when both sides show the same total after rounding to 2 decimal seconds.
+   * Solo has no opponent, so it is never a tie.
+   */
+  function totalsTied(state) {
+    if (!state || state.mode === "solo" || !state.teams || !state.teams[1]) return false;
+    return formatSeconds(teamTotalCs(state.teams[0])) === formatSeconds(teamTotalCs(state.teams[1]));
+  }
+
+  /**
+   * One line per stop, grouped by round then side.
+   * `best` is every stop whose absolute error equals the match minimum.
+   */
+  function resultLines(state) {
+    var lines = [];
+    var best = null;
+    (state.teams || []).forEach(function (team, teamIndex) {
+      (team.rounds || []).forEach(function (round) {
+        var errorCs = round.errorCs;
+        if (best == null || errorCs < best) best = errorCs;
+        lines.push({
+          teamIndex: teamIndex,
+          teamName: team.name,
+          round: round.round,
+          targetSec: round.targetSec,
+          player: round.player,
+          stoppedCs: round.stoppedCs,
+          errorCs: errorCs,
+        });
+      });
+    });
+    lines.sort(function (a, b) {
+      if (a.round !== b.round) return a.round - b.round;
+      return a.teamIndex - b.teamIndex;
+    });
+    lines.forEach(function (line) {
+      line.best = best != null && line.errorCs === best;
+    });
+    return lines;
   }
 
   function pad2(n) {
@@ -283,8 +325,20 @@
     return s + ":" + pad2(c);
   }
 
+  /** Centiseconds → seconds with exactly 2 decimals, without binary float drift. */
   function formatSeconds(cs) {
-    return (Math.max(0, cs) / 100).toFixed(2);
+    var v = Math.round(Number(cs));
+    if (!isFinite(v) || v < 0) v = 0;
+    var whole = Math.floor(v / 100);
+    var frac = v % 100;
+    return whole + "." + (frac < 10 ? "0" + frac : String(frac));
+  }
+
+  function formatTargetSeconds(sec) {
+    var n = Number(sec);
+    if (!isFinite(n)) return String(sec);
+    var text = Math.abs(n - Math.round(n)) < 1e-9 ? String(Math.round(n)) : String(n);
+    return text + " 秒";
   }
 
   function formatTargetLabel(sec) {
@@ -385,12 +439,15 @@
     peekAdvance: peekAdvance,
     advance: advance,
     teamTotalCs: teamTotalCs,
+    totalsTied: totalsTied,
+    resultLines: resultLines,
     winnerIndex: winnerIndex,
     splitLed: splitLed,
     formatLed: formatLed,
     formatGoal: formatGoal,
     formatDiff: formatDiff,
     formatSeconds: formatSeconds,
+    formatTargetSeconds: formatTargetSeconds,
     formatTargetLabel: formatTargetLabel,
     modeLabel: modeLabel,
     formatTargetsArrow: formatTargetsArrow,
